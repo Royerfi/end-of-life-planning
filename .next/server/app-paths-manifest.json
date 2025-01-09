@@ -1,0 +1,8 @@
+{
+  "/page": "app/page.js",
+  "/documents/page": "app/documents/page.js",
+  "/family/page": "app/family/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/resources/page": "app/resources/page.js",
+  "/real-estate/page": "app/real-estate/page.js"
+}
