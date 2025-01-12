@@ -8,15 +8,25 @@ import { RealEstateForm } from '../../components/RealEstateForm'
 import { toast } from '@/components/ui/use-toast'
 
 export default function EditRealEstatePage() {
-  const { id } = useParams()
+  const params = useParams<{ id: string }>()
+  const id = params?.id
   const [property, setProperty] = useState<RealEstate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        const data = await realEstateService.getById(Number(id))
-        setProperty(data)
+        if (id) {
+          const data = await realEstateService.getById(Number(id))
+          setProperty(data)
+        } else {
+          // Handle case where id is null
+          toast({
+            title: 'Error',
+            description: 'Property ID not found',
+            variant: 'destructive',
+          })
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -28,7 +38,9 @@ export default function EditRealEstatePage() {
       }
     }
 
-    fetchProperty()
+    if (id) {
+      fetchProperty()
+    }
   }, [id])
 
   if (isLoading) {
