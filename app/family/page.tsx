@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Edit, Trash2, UserPlus, Upload, List, Grid } from 'lucide-react'
+import { Edit, Trash2, Upload } from 'lucide-react'
 
 interface FamilyMember {
   id: number;
@@ -172,9 +172,7 @@ export default function FamilyMembers() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Family Members</h1>
-      
+    <div className="p-6 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>{editingMember ? 'Edit Family Member' : 'Add New Family Member'}</CardTitle>
@@ -322,13 +320,13 @@ export default function FamilyMembers() {
               <CardDescription>Manage and view your family members</CardDescription>
             </div>
             <div className="flex items-center space-x-2">
-              <Label htmlFor="view-mode">List View</Label>
+              <Label htmlFor="view-mode">List</Label>
               <Switch
                 id="view-mode"
-                checked={viewMode === 'list'}
+                checked={viewMode === 'card'}
                 onCheckedChange={toggleViewMode}
               />
-              <Label htmlFor="view-mode">Card View</Label>
+              <Label htmlFor="view-mode">Grid</Label>
             </div>
           </div>
         </CardHeader>

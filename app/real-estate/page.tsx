@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
-import { Home, List, Grid, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 interface Property {
   id: string;
@@ -156,9 +156,7 @@ export default function RealEstate() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Real Estate Management</h1>
-
+    <div className="p-6 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Add New Property</CardTitle>
@@ -196,15 +194,18 @@ export default function RealEstate() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Your Properties</CardTitle>
+            <div>
+              <CardTitle>Your Properties</CardTitle>
+              <CardDescription>Manage and view your real estate properties</CardDescription>
+            </div>
             <div className="flex items-center space-x-2">
-              <List className="h-4 w-4" />
+              <Label htmlFor="view-mode">List</Label>
               <Switch
+                id="view-mode"
                 checked={viewMode === 'card'}
                 onCheckedChange={toggleViewMode}
-                aria-label="Toggle view mode"
               />
-              <Grid className="h-4 w-4" />
+              <Label htmlFor="view-mode">Grid</Label>
             </div>
           </div>
         </CardHeader>

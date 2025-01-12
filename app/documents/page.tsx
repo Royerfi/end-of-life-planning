@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,32 +10,64 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { FileText, Upload, Tag, Edit, File, List, Grid } from 'lucide-react'
-import { DocumentPopup } from '../components/document-popup'
+import { FileText, Upload, Edit, File, Trash2, Download, Eye } from 'lucide-react'
+import DocumentPopup from '../components/document-popup'
+import { toast } from "@/components/ui/use-toast"
 
 interface Document {
   id: number;
   name: string;
   type: string;
   tags: string[];
-  uploadDate: string;
-  file: File | null;
+  upload_date: string;
+  file_path: string;
+  uploader_name: string; // Added uploader_name
 }
 
-const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Other']
+interface NewDocument {
+  name: string;
+  type: string;
+  tags: string[];
+  file_path: File | null;
+}
+
+const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Deed', 'Other']
 
 export default function Documents() {
   const [documents, setDocuments] = useState<Document[]>([])
-  const [newDocument, setNewDocument] = useState<Omit<Document, 'id' | 'uploadDate'>>({
+  const [newDocument, setNewDocument] = useState<NewDocument>({
     name: '',
     type: '',
     tags: [],
-    file: null,
+    file_path: null,
   })
   const [newTag, setNewTag] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [isPopupOpen, setIsPopupOpen] = useState(false)
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [])
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch('/api/documents')
+      if (response.ok) {
+        const data = await response.json()
+        setDocuments(data)
+      } else {
+        throw new Error('Failed to fetch documents')
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch documents. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -61,17 +93,54 @@ export default function Documents() {
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewDocument(prev => ({ ...prev, file: e.target.files![0] }))
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setNewDocument(prev => ({ ...prev, file_path: files[0] }))
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const id = documents.length + 1
-    const uploadDate = new Date().toISOString().split('T')[0]
-    setDocuments([...documents, { ...newDocument, id, uploadDate }])
-    setNewDocument({ name: '', type: '', tags: [], file: null })
+    if (!newDocument.file_path) {
+      toast({
+        title: "Error",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      })
+      return
+    }
+    try {
+      const formData = new FormData()
+      formData.append('name', newDocument.name)
+      formData.append('type', newDocument.type)
+      formData.append('tags', JSON.stringify(newDocument.tags))
+      formData.append('file', newDocument.file_path)
+
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: "Success",
+          description: data.message || "Document uploaded successfully.",
+        })
+        setNewDocument({ name: '', type: '', tags: [], file_path: null })
+        fetchDocuments()
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload document')
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload document. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const toggleViewMode = () => {
@@ -88,16 +157,68 @@ export default function Documents() {
     setIsPopupOpen(false)
   }
 
-  const saveDocumentChanges = (updatedDocument: Document) => {
-    setDocuments(documents.map(doc => 
-      doc.id === updatedDocument.id ? updatedDocument : doc
-    ))
+  const saveDocumentChanges = async (updatedDocument: Document) => {
+    try {
+      const response = await fetch('/api/documents', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedDocument),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Document updated successfully.",
+        })
+        fetchDocuments()
+      } else {
+        throw new Error('Failed to update document')
+      }
+    } catch (error) {
+      console.error('Error updating document:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update document. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteDocument = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      try {
+        const response = await fetch('/api/documents', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id }),
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: "Document deleted successfully.",
+          })
+          fetchDocuments()
+        } else {
+          throw new Error('Failed to delete document')
+        }
+      } catch (error) {
+        console.error('Error deleting document:', error)
+        toast({
+          title: "Error",
+          description: "Failed to delete document. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Document Management</h1>
-      
+    <div className="p-6 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Upload New Document</CardTitle>
@@ -174,13 +295,13 @@ export default function Documents() {
               <CardDescription>Manage and view your uploaded documents</CardDescription>
             </div>
             <div className="flex items-center space-x-2">
-              <Label htmlFor="view-mode">List View</Label>
+              <Label htmlFor="view-mode">List</Label>
               <Switch
                 id="view-mode"
                 checked={viewMode === 'card'}
                 onCheckedChange={toggleViewMode}
               />
-              <Label htmlFor="view-mode">Card View</Label>
+              <Label htmlFor="view-mode">Grid</Label>
             </div>
           </div>
         </CardHeader>
@@ -191,7 +312,7 @@ export default function Documents() {
                 <Card key={doc.id}>
                   <CardHeader className="space-y-1">
                     <CardTitle className="text-base font-medium leading-none truncate">
-                      {doc.file ? doc.file.name : doc.name}
+                      {doc.name}
                     </CardTitle>
                     <CardDescription className="text-sm">{doc.type}</CardDescription>
                   </CardHeader>
@@ -201,15 +322,24 @@ export default function Documents() {
                         <Badge key={tag} variant="outline">{tag}</Badge>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-500">Uploaded on: {doc.uploadDate}</p>
+                    <p className="text-sm text-gray-500">Uploaded on: {new Date(doc.upload_date).toLocaleString()}</p>
+                    <p className="text-sm text-gray-500">Uploaded by: {doc.uploader_name}</p>
                     <div className="flex space-x-2 mt-4">
+                      <Button variant="outline" size="sm" onClick={() => window.open(`/api/documents?id=${doc.id}`, '_blank')}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => openDocumentPopup(doc)}>
-                        <FileText className="h-4 w-4 mr-2" />
+                        <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => openDocumentPopup(doc)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => deleteDocument(doc.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
                       </Button>
                     </div>
                   </CardContent>
@@ -224,6 +354,7 @@ export default function Documents() {
                   <TableHead>Type</TableHead>
                   <TableHead>Tags</TableHead>
                   <TableHead>Upload Date</TableHead>
+                  <TableHead>Uploaded By</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -233,7 +364,7 @@ export default function Documents() {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <File className="h-4 w-4" />
-                        <span>{doc.file ? doc.file.name : doc.name}</span>
+                        <span>{doc.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>{doc.type}</TableCell>
@@ -244,14 +375,28 @@ export default function Documents() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell>{doc.uploadDate}</TableCell>
+                    <TableCell>{new Date(doc.upload_date).toLocaleString()}</TableCell>
+                    <TableCell>{doc.uploader_name}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
+                              <Button variant="outline" size="icon" onClick={() => window.open(`/api/documents?id=${doc.id}`, '_blank')}>
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">Download document</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Download document</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button variant="outline" size="icon" onClick={() => openDocumentPopup(doc)}>
-                                <FileText className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                                 <span className="sr-only">View document</span>
                               </Button>
                             </TooltipTrigger>
@@ -270,6 +415,19 @@ export default function Documents() {
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Edit document</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="outline" size="icon" onClick={() => deleteDocument(doc.id)}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete document</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete document</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

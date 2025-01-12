@@ -1,73 +1,55 @@
-import React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+'use client'
+
+import { useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import DocumentViewer from './document-viewer'
 
 interface Document {
   id: number;
   name: string;
   type: string;
   tags: string[];
-  uploadDate: string;
-  file: File | null;
+  upload_date: string;
+  file_path: string;
+  uploader_name: string;
 }
 
 interface DocumentPopupProps {
   document: Document | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedDocument: Document) => void;
+  onSave: (document: Document) => Promise<void>;
 }
 
-const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Other']
+export default function DocumentPopup({ document, isOpen, onClose, onSave }: DocumentPopupProps) {
+  const [editedDocument, setEditedDocument] = useState<Document | null>(document)
 
-export function DocumentPopup({ document, isOpen, onClose, onSave }: DocumentPopupProps) {
-  const [editedDocument, setEditedDocument] = React.useState<Document | null>(null)
-  const [newTag, setNewTag] = React.useState('')
-
-  React.useEffect(() => {
-    setEditedDocument(document)
-  }, [document])
-
-  if (!editedDocument) return null
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setEditedDocument(prev => ({ ...prev!, [name]: value }))
-  }
-
-  const handleTypeChange = (value: string) => {
-    setEditedDocument(prev => ({ ...prev!, type: value }))
-  }
-
-  const handleAddTag = () => {
-    if (newTag && !editedDocument.tags.includes(newTag)) {
-      setEditedDocument(prev => ({ ...prev!, tags: [...prev!.tags, newTag] }))
-      setNewTag('')
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (editedDocument) {
+      setEditedDocument({ ...editedDocument, [e.target.name]: e.target.value })
     }
   }
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    setEditedDocument(prev => ({
-      ...prev!,
-      tags: prev!.tags.filter(tag => tag !== tagToRemove)
-    }))
+  const handleSave = async () => {
+    if (editedDocument) {
+      await onSave(editedDocument);
+      onClose();
+    }
   }
 
-  const handleSave = () => {
-    onSave(editedDocument)
-    onClose()
-  }
+  if (!document) return null
+
+  const documentUrl = `/api/documents?id=${document.id}`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editedDocument.name}</DialogTitle>
+          <DialogTitle>{document.name}</DialogTitle>
+          <DialogDescription>View and edit document details</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -77,7 +59,7 @@ export function DocumentPopup({ document, isOpen, onClose, onSave }: DocumentPop
             <Input
               id="name"
               name="name"
-              value={editedDocument.name}
+              value={editedDocument?.name || ''}
               onChange={handleInputChange}
               className="col-span-3"
             />
@@ -86,56 +68,20 @@ export function DocumentPopup({ document, isOpen, onClose, onSave }: DocumentPop
             <Label htmlFor="type" className="text-right">
               Type
             </Label>
-            <Select onValueChange={handleTypeChange} value={editedDocument.type}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a document type" />
-              </SelectTrigger>
-              <SelectContent>
-                {documentTypes.map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="uploadDate" className="text-right">
-              Upload Date
-            </Label>
             <Input
-              id="uploadDate"
-              name="uploadDate"
-              value={editedDocument.uploadDate}
+              id="type"
+              name="type"
+              value={editedDocument?.type || ''}
               onChange={handleInputChange}
               className="col-span-3"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="tags" className="text-right">
-              Tags
-            </Label>
-            <div className="col-span-3">
-              <div className="flex flex-wrap gap-2 mb-2">
-                {editedDocument.tags.map(tag => (
-                  <Badge key={tag} variant="secondary" className="px-2 py-1">
-                    {tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="ml-2 text-xs">&times;</button>
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  id="newTag"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a tag"
-                />
-                <Button type="button" onClick={handleAddTag}>Add</Button>
-              </div>
-            </div>
+          <div className="col-span-4">
+            <DocumentViewer documentUrl={documentUrl} />
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" onClick={handleSave}>Save changes</Button>
+          <Button type="submit" onClick={handleSave}>Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
