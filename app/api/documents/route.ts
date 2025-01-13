@@ -4,15 +4,27 @@ import { verify } from '@/lib/auth';
 import { put, del } from '@vercel/blob';
 import { nanoid } from 'nanoid';
 
-export async function POST(req: NextRequest) {
+async function authenticateRequest(req: NextRequest) {
+  const token = req.cookies.get('token')?.value;
+  if (!token) {
+    return null;
+  }
   try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const payload = await verify(token);
-    
+    return payload;
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return null;
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const payload = await authenticateRequest(req);
+  if (!payload) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
     const formData = await req.formData();
     const name = formData.get('name') as string;
     const type = formData.get('type') as string;
@@ -41,13 +53,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const payload = await authenticateRequest(req);
+  if (!payload) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const payload = await verify(token);
+  try {
     const url = new URL(req.url);
     const documentId = url.searchParams.get('id');
 
@@ -74,13 +85,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const payload = await authenticateRequest(req);
+  if (!payload) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    await verify(token);
+  try {
     const { id, name, type, tags } = await req.json();
     await updateDocument(id, name, type, tags);
     return NextResponse.json({ message: 'Document updated successfully' });
@@ -91,13 +101,12 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const payload = await authenticateRequest(req);
+  if (!payload) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const payload = await verify(token);
+  try {
     const { id } = await req.json();
     
     // Fetch the document first

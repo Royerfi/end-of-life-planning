@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { FileText, Upload, Edit, File, Trash2, Download, Eye } from 'lucide-react'
+import { FileText, Upload, Edit, File, Trash2, Download, Eye, Loader2 } from 'lucide-react'
 import DocumentPopup from '../components/document-popup'
 import { toast } from "@/components/ui/use-toast"
 
@@ -34,6 +35,7 @@ interface NewDocument {
 const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Deed', 'Other']
 
 export default function Documents() {
+  const { user, isLoading: authLoading } = useAuth()
   const [documents, setDocuments] = useState<Document[]>([])
   const [newDocument, setNewDocument] = useState<NewDocument>({
     name: '',
@@ -45,13 +47,17 @@ export default function Documents() {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetchDocuments()
-  }, [])
+    if (!authLoading && user) {
+      fetchDocuments()
+    }
+  }, [authLoading, user])
 
   const fetchDocuments = async () => {
     try {
+      setIsLoading(true)
       const response = await fetch('/api/documents')
       if (response.ok) {
         const data = await response.json()
@@ -66,6 +72,8 @@ export default function Documents() {
         description: "Failed to fetch documents. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -215,6 +223,22 @@ export default function Documents() {
         })
       }
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p>Please log in to view documents.</p>
+      </div>
+    )
   }
 
   return (

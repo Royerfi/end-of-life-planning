@@ -18,13 +18,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (token && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+  if (token) {
     try {
       await verify(token)
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // If the token is valid and the user is trying to access login or signup, redirect to dashboard
+      if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
     } catch {
-      // If token is invalid, allow access to login/signup pages
-      return NextResponse.next()
+      // If token is invalid, clear it and redirect to login
+      const response = NextResponse.redirect(new URL('/login', request.url))
+      response.cookies.delete('token')
+      return response
     }
   }
 
