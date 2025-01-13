@@ -31,7 +31,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.openai.com;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.openai.com https://eol25-aeo1adquw-royerfis-projects.vercel.app; worker-src 'self' blob:;"
           }
         ]
       }
@@ -40,7 +40,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['fs'],
   },
-  // Add this section to serve files from the uploads directory
   async rewrites() {
     return [
       {
@@ -52,3 +51,4 @@ const nextConfig = {
 }
 
 export default nextConfig;
+
