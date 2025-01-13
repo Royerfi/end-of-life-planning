@@ -10,16 +10,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from '@/components/ui/use-toast'
 
 export default function RealEstateDetailPage() {
-  const { id } = useParams()
+  const params = useParams<{ id: string }>()
+  const id = params?.id
   const router = useRouter()
   const [property, setProperty] = useState<RealEstate | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('') // Added state for error handling
 
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        const data = await realEstateService.getById(Number(id))
-        setProperty(data)
+        if (id) {
+          const data = await realEstateService.getById(Number(id))
+          setProperty(data)
+        } else {
+          // Handle case where id is undefined
+          setError('Property ID not found')
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -52,6 +59,10 @@ export default function RealEstateDetailPage() {
 
   if (isLoading) {
     return <div>Loading...</div>
+  }
+
+  if (error) {
+    return <div>{error}</div> // Display error message
   }
 
   if (!property) {
