@@ -26,6 +26,7 @@ export default function Login() {
         description: "You've successfully logged in!",
       })
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to log in",

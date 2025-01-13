@@ -12,14 +12,18 @@ export async function POST(req: Request) {
     const isValid = await validateUser(email, password);
     
     if (!isValid) {
+      console.log('Invalid credentials for email:', email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const user = await getUserByEmail(email);
     
     if (!user) {
+      console.log('User not found for email:', email);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    console.log('User found, generating token for user ID:', user.id);
 
     const token = await sign({ userId: user.id });
     
@@ -31,6 +35,8 @@ export async function POST(req: Request) {
       path: '/',
     });
     
+    console.log('Login successful for email:', email);
+
     return NextResponse.json({ 
       message: 'Logged in successfully', 
       user: { id: user.id, name: user.name, email: user.email } 

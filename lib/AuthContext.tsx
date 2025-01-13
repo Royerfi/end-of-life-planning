@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from "@/components/ui/use-toast"
 
 interface User {
   id: string;
@@ -46,23 +47,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log('Attempting to log in with email:', email);
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('Login response status:', response.status);
+      const data = await response.json();
+      console.log('Login response data:', data);
+
       if (response.ok) {
-        const data = await response.json();
         setUser(data.user);
         router.push('/dashboard');
       } else {
-        const error = await response.text();
-        throw new Error(error);
+        throw new Error(data.error || 'Failed to log in');
       }
     } catch (error) {
       console.error('Login error:', error);
-      throw error;
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to log in",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
