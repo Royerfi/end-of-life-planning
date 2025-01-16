@@ -1,56 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
-import { nanoid } from 'nanoid'
-import pool from '@/lib/db'
-import { verify } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
+import { nanoid } from 'nanoid';
+import pool from '@/lib/db';
+import { verify } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
     // Verify JWT token
-    const token = request.cookies.get('token')?.value
+    const token = request.cookies.get('token')?.value;
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let userId: string
+    let userId: string;
     try {
-      const payload = await verify(token)
-      userId = payload.userId
+      const payload = await verify(token);
+      userId = payload.userId;
     } catch (error) {
-      console.error('Token verification error:', error)
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      console.error('Token verification error:', error);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    const name = formData.get('name') as string
-    const type = formData.get('type') as string
-    const tagsString = formData.get('tags') as string
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const name = formData.get('name') as string;
+    const type = formData.get('type') as string;
+    const tagsString = formData.get('tags') as string;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Parse tags, ensuring it's a valid array
-    let tags: string[]
+    // Parse tags
+    let tags: string[] = [];
     try {
-      tags = JSON.parse(tagsString || '[]')
-      if (!Array.isArray(tags)) {
-        tags = []
-      }
+      tags = JSON.parse(tagsString || '[]');
     } catch (e) {
-      console.error('Error parsing tags:', e)
-      tags = []
+      console.error('Error parsing tags:', e);
     }
 
     // Upload to Vercel Blob
     const blob = await put(file.name, file, {
       access: 'public',
       addRandomSuffix: true,
-    })
+    });
 
     // Save to database
-    const client = await pool.connect()
+    const client = await pool.connect();
     try {
       const result = await client.query(
         `INSERT INTO documents (
@@ -65,26 +61,32 @@ export async function POST(request: NextRequest) {
           blob.url,
           file.size,
           file.type,
-          JSON.stringify(tags)
+          JSON.stringify(tags),
         ]
-      )
+      );
 
-      return NextResponse.json(result.rows[0])
+      return NextResponse.json(result.rows[0]);
     } catch (dbError) {
-      console.error('Database error:', dbError)
-      return NextResponse.json({ error: 'Failed to save document metadata' }, { status: 500 })
+      console.error('Database error:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to save document metadata' },
+        { status: 500 }
+      );
     } finally {
-      client.release()
+      client.release();
     }
   } catch (error) {
-    console.error('Error uploading document:', error)
-    return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 })
+    console.error('Error uploading document:', error);
+    return NextResponse.json(
+      { error: 'Failed to upload document' },
+      { status: 500 }
+    );
   }
 }
 
-export const config = {
+// Explicitly type the configuration object
+export const segmentConfig: Record<string, any> = {
   api: {
     bodyParser: false,
   },
-}
-
+};
