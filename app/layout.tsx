@@ -1,16 +1,13 @@
-import './globals.css'
+'use client'
+
+
 import { Inter } from 'next/font/google'
-import { Navigation } from './components/navigation'
-import { Header } from './components/Header'
+import './globals.css'
+import { cn } from '@/lib/utils'
+import { Sidebar } from './components/sidebar'
 import { AuthProvider } from '@/lib/AuthContext'
-import { Toaster } from "@/components/ui/toaster"
 
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata = {
-  title: 'Life Planning',
-  description: 'Prepare for end of life planning with secure document storage and family management',
-}
+const inter = Inter({subsets: ['latin']})
 
 export default function RootLayout({
   children,
@@ -18,19 +15,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={cn(
+        "min-h-screen bg-background font-sans antialiased",
+        inter.className
+      )}>
         <AuthProvider>
-          <div className="flex h-screen bg-background">
-            <Navigation />
-            <div className="flex-1 flex flex-col">
-              <Header />
-              <main className="flex-1 overflow-y-auto">
-                {children}
-              </main>
-            </div>
+          <div className="relative flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1">{children}</main>
           </div>
-          <Toaster />
         </AuthProvider>
       </body>
     </html>

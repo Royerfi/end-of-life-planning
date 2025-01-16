@@ -1,31 +1,99 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RealEstateRecap } from "../components/real-estate-recap"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Users, PhoneCall, Home, PlusCircle } from 'lucide-react'
+import { FileText, Users, PhoneCall, Home } from 'lucide-react'
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from '@/lib/AuthContext'
+import { Property } from '@/lib/rentcast'
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [completionPercentage, setCompletionPercentage] = useState(65)
+  const [documentCount, setDocumentCount] = useState(0)
+  const [familyMemberCount, setFamilyMemberCount] = useState(0)
+  const { toast } = useToast()
+  const [properties, setProperties] = useState<Property[]>([])
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true)
 
-  // Mock data for the real estate recap
-  const properties = [
-    { address: "123 Main St", price: 300000, squareFootage: 1500, yearBuilt: 1990 },
-    { address: "456 Elm St", price: 450000, squareFootage: 2000, yearBuilt: 2005 },
-    { address: "789 Oak St", price: 550000, squareFootage: 2500, yearBuilt: 2015 },
-  ];
+  useEffect(() => {
+    if (user) {
+      fetchProperties()
+      fetchDocumentCount()
+      fetchFamilyMemberCount()
+    }
+  }, [user])
 
-  const recentActivity = [
-    { action: "Updated medical information", date: "2023-07-15" },
-    { action: "Added new family member", date: "2023-07-10" },
-    { action: "Uploaded new document", date: "2023-07-05" },
-  ];
+  const fetchProperties = async () => {
+    try {
+      const response = await fetch('/api/properties')
+      if (!response.ok) {
+        throw new Error('Failed to fetch properties')
+      }
+      const data = await response.json()
+      setProperties(data)
+    } catch (error) {
+      console.error('Error fetching properties:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch properties. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingProperties(false)
+    }
+  }
+
+  const fetchDocumentCount = async () => {
+    try {
+      const response = await fetch('/api/documents/count')
+      if (!response.ok) {
+        throw new Error('Failed to fetch document count')
+      }
+      const data = await response.json()
+      setDocumentCount(data.count)
+    } catch (error) {
+      console.error('Error fetching document count:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch document count. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const fetchFamilyMemberCount = async () => {
+    try {
+      const response = await fetch('/api/family-members/count')
+      if (!response.ok) {
+        throw new Error('Failed to fetch family member count')
+      }
+      const data = await response.json()
+      setFamilyMemberCount(data.count)
+    } catch (error) {
+      console.error('Error fetching family member count:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch family member count. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (!user) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome, {user.name || 'User'}</p>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -46,7 +114,7 @@ export default function Dashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{documentCount}</div>
             <p className="text-xs text-muted-foreground">stored securely</p>
           </CardContent>
         </Card>
@@ -56,7 +124,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{familyMemberCount}</div>
             <p className="text-xs text-muted-foreground">added to your plan</p>
           </CardContent>
         </Card>
@@ -72,35 +140,14 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Real Estate Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RealEstateRecap properties={properties} />
-          </CardContent>
-        </Card>
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center">
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(activity.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Real Estate Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RealEstateRecap properties={properties} isLoading={isLoadingProperties} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

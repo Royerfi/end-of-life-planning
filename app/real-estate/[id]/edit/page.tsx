@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { RealEstate } from '@/types/realEstate'
-import { realEstateService } from '@/lib/services/realEstateService'
+import { realEstateService } from '@/lib/services/realtcast'
 import { RealEstateForm } from '../../components/RealEstateForm'
 import { toast } from '@/components/ui/use-toast'
 

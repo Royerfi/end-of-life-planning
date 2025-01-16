@@ -2,49 +2,46 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
-export default function Signup() {
+export default function Register() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      console.log('Attempting to sign up...');
-      const response = await fetch('/api/signup', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       })
 
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
-
       if (response.ok) {
         toast({
           title: "Account created",
-          description: "You've successfully signed up!",
+          description: "You can now sign in with your new account.",
         })
-        router.push('/login')
+        router.push('/signin')
       } else {
+        const data = await response.json()
         throw new Error(data.error || 'Failed to create account')
       }
     } catch (error) {
-      console.error('Signup error:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create account",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       })
     } finally {
@@ -53,11 +50,11 @@ export default function Signup() {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <Card className="w-[350px]">
         <CardHeader>
-          <CardTitle>Sign Up</CardTitle>
-          <CardDescription>Create an account to get started</CardDescription>
+          <CardTitle>Create an Account</CardTitle>
+          <CardDescription>Enter your details to register</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +63,7 @@ export default function Signup() {
               <Input
                 id="name"
                 type="text"
-                placeholder="John Doe"
+                placeholder="Enter your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -77,7 +74,7 @@ export default function Signup() {
               <Input
                 id="email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -88,15 +85,22 @@ export default function Signup() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Create a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Signing up...' : 'Sign Up'}
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
+          <div className="mt-4 text-center text-sm">
+            Already have an account?{' '}
+            <Link href="/signin" className="text-blue-500 hover:underline">
+              Sign in
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

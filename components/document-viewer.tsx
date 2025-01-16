@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PDFViewer } from '@/components/pdf-viewer'
+import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { PDFViewer } from './pdf-viewer'
 
 interface DocumentViewerProps {
   documentUrl: string;
@@ -15,7 +16,25 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  if (!documentUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <DialogHeader>
+          <DialogTitle>Error</DialogTitle>
+          <DialogDescription>No document URL provided</DialogDescription>
+        </DialogHeader>
+        <Button onClick={onClose} className="mt-4">Close</Button>
+      </div>
+    )
+  }
+
   useEffect(() => {
+    if (!documentUrl) {
+      setError('No document URL provided')
+      setIsLoading(false)
+      return
+    }
+
     const checkDocument = async () => {
       try {
         const response = await fetch(documentUrl)
@@ -35,8 +54,11 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={onClose}>Close</Button>
+        <DialogHeader>
+          <DialogTitle>Error</DialogTitle>
+          <DialogDescription>{error}</DialogDescription>
+        </DialogHeader>
+        <Button onClick={onClose} className="mt-4">Close</Button>
       </div>
     )
   }
@@ -44,6 +66,10 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
+        <DialogHeader>
+          <DialogTitle>Loading Document</DialogTitle>
+          <DialogDescription>Please wait while we load your document...</DialogDescription>
+        </DialogHeader>
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
@@ -51,6 +77,10 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
 
   return (
     <div className="h-full flex flex-col">
+      <DialogHeader>
+        <DialogTitle>Document Viewer</DialogTitle>
+        <DialogDescription>Viewing your document</DialogDescription>
+      </DialogHeader>
       <div className="flex-grow">
         {mimeType.startsWith('image/') && (
           <img 
