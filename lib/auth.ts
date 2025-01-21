@@ -1,10 +1,22 @@
 import { jwtVerify, SignJWT } from 'jose';
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET || '');
+interface JWTPayload {
+  userId: string;
+  email: string;
+  [key: string]: unknown; // Replace `any` with `unknown` for stricter type checking
+}
 
-export async function sign(payload: Record<string, any>): Promise<string> {
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || (() => {
+    throw new Error("JWT_SECRET environment variable is required");
+  })()
+);
+
+const tokenExpiration = parseInt(process.env.JWT_EXPIRATION || "86400", 10); // Default: 24 hours
+
+export async function sign(payload: JWTPayload): Promise<string> {
   const iat = Math.floor(Date.now() / 1000);
-  const exp = iat + 60 * 60 * 24; // 24 hours
+  const exp = iat + tokenExpiration;
 
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
@@ -14,15 +26,14 @@ export async function sign(payload: Record<string, any>): Promise<string> {
     .sign(secret);
 }
 
-export async function verify(token: string): Promise<Record<string, any>> {
+export async function verify(token: string): Promise<JWTPayload> {
   try {
     const { payload } = await jwtVerify(token, secret, {
       algorithms: ['HS256'],
     });
-    return payload;
+    return payload as JWTPayload;
   } catch (error) {
     console.error('Token verification error:', error);
     throw new Error('Invalid token');
   }
 }
-

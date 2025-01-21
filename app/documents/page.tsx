@@ -1,153 +1,165 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Upload, FileText } from 'lucide-react'
-import { useToast } from "@/components/ui/use-toast"
-import { DocumentViewer } from "@/components/document-viewer"
+import * as React from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Upload, FileText } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast";
+import { DocumentViewer } from "@/components/document-viewer";
 
-const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Deed', 'Other']
+const documentTypes = ['Will', 'Power of Attorney', 'Medical Directive', 'Insurance Policy', 'Financial Statement', 'Deed', 'Other'];
 
 interface Document {
   id: string;
   name: string;
   type: string;
-  url: string;
+  file_path: string;
   mimeType: string;
   created_at: string;
   tags?: string[];
 }
 
-export default function Documents() {
-  const [newTag, setNewTag] = useState('')
-  const [tags, setTags] = useState<string[]>([])
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
-  const [isLoading, setIsLoading] = useState(false)
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [documentName, setDocumentName] = useState('')
-  const [documentType, setDocumentType] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
-  const [isViewerOpen, setIsViewerOpen] = useState(false)
+export default function DocumentsPage(): JSX.Element {
+  const [newTag, setNewTag] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [isLoading, setIsLoading] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState('');
+  const [documentType, setDocumentType] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  useEffect(() => {
-    fetchDocuments()
-  }, [])
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
-      const response = await fetch('/api/documents')
+      const response = await fetch('/api/documents');
       if (!response.ok) {
-        throw new Error('Failed to fetch documents')
+        throw new Error('Failed to fetch documents');
       }
-      const data = await response.json()
-      setDocuments(data)
+      const data = await response.json();
+      console.log('Fetched documents:', data);
+      setDocuments(data);
     } catch (error) {
-      console.error('Error fetching documents:', error)
+      console.error('Error fetching documents:', error);
       toast({
         title: "Error",
         description: "Failed to fetch documents. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
-      setTags(prev => [...prev, newTag])
-      setNewTag('')
+      setTags(prev => [...prev, newTag]);
+      setNewTag('');
     }
-  }
+  };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(prev => prev.filter(tag => tag !== tagToRemove))
-  }
+    setTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file)
-      setDocumentName(file.name)
+      setSelectedFile(file);
+      if (!documentName) {
+        setDocumentName(file.name);
+      }
     }
-  }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+    event.preventDefault();
     if (!selectedFile || !documentName || !documentType) {
       toast({
         title: "Error",
         description: "Please fill in all required fields and select a file.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
-    const formData = new FormData()
-    formData.append('file', selectedFile)
-    formData.append('name', documentName)
-    formData.append('type', documentType)
-    formData.append('tags', JSON.stringify(tags))
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('name', documentName);
+    formData.append('type', documentType);
+    formData.append('tags', JSON.stringify(tags));
 
     try {
       const response = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to upload document')
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload document');
       }
 
-      await fetchDocuments() // Refresh the document list immediately after upload
-      
+      await fetchDocuments();
       toast({
         title: "Success",
         description: "Document uploaded successfully.",
-      })
+      });
 
-      // Reset form
-      setSelectedFile(null)
-      setDocumentName('')
-      setDocumentType('')
-      setTags([])
+      setSelectedFile(null);
+      setDocumentName('');
+      setDocumentType('');
+      setTags([]);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+        fileInputRef.current.value = '';
       }
     } catch (error) {
-      console.error('Error uploading document:', error)
+      console.error('Error uploading document:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to upload document. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'numeric',
       day: 'numeric',
-      year: 'numeric'
-    })
-  }
+      year: 'numeric',
+    });
+  };
 
   const handleViewDocument = (doc: Document) => {
-    setSelectedDocument(doc)
-    setIsViewerOpen(true)
-  }
+    console.log('Attempting to view document:', doc);
+    try {
+      setSelectedDocument(doc);
+      setIsViewerOpen(true);
+    } catch (error) {
+      console.error('Error setting up document viewer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open document viewer. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const renderDocuments = () => {
     if (viewMode === 'grid') {
@@ -216,7 +228,6 @@ export default function Documents() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Documents</h1>
         </div>
-
         <Card>
           <CardHeader>
             <CardTitle>Upload New Document</CardTitle>
@@ -239,7 +250,6 @@ export default function Documents() {
                   </Button>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="name">Document Name</Label>
                 <Input 
@@ -250,7 +260,6 @@ export default function Documents() {
                   disabled={isLoading}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="type">Document Type</Label>
                 <Select onValueChange={setDocumentType} value={documentType}>
@@ -264,7 +273,6 @@ export default function Documents() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Tags</Label>
                 <div className="flex space-x-2">
@@ -291,14 +299,12 @@ export default function Documents() {
                   ))}
                 </div>
               </div>
-
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? 'Uploading...' : 'Upload Document'}
               </Button>
             </form>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -327,19 +333,30 @@ export default function Documents() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
+      <Dialog
+        open={isViewerOpen}
+        onOpenChange={(open: boolean) => {
+          if (!open) {
+            console.log('Closing document viewer');
+            setSelectedDocument(null);
+          }
+          setIsViewerOpen(open);
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh]">
-          {selectedDocument && (
+          {selectedDocument ? (
             <DocumentViewer
-              documentUrl={selectedDocument.url || ''}
-              mimeType={selectedDocument.mimeType || ''}
+              documentId={selectedDocument.id}
+              documentUrl={selectedDocument.file_path}
+              mimeType={selectedDocument.mimeType}
+              filePath={selectedDocument.file_path}
               onClose={() => setIsViewerOpen(false)}
             />
+          ) : (
+            <div>No document selected</div>
           )}
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }
-

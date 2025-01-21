@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getPool } from '@/lib/db';
+import pool from '@/lib/db';
+import { logError, logInfo } from '@/lib/errorLogging';
 
 export async function GET() {
   try {
-    const client = await getPool().connect();
+    const client = await pool.connect();
     try {
       const result = await client.query('SELECT NOW()');
+      logInfo('Database connection successful', result.rows[0]);
       return NextResponse.json({ message: 'Database connection successful', time: result.rows[0].now });
     } finally {
       client.release();
     }
   } catch (error) {
-    console.error('Database connection error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to connect to database', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    logError(error, 'GET /api/test-db');
+    return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
   }
 }
 

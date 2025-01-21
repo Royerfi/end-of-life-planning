@@ -4,6 +4,8 @@ import { nanoid } from 'nanoid';
 import pool from '@/lib/db';
 import { verify } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify JWT token
@@ -31,12 +33,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Parse tags
-    let tags: string[] = [];
+    // Parse tags, ensuring it's a valid array
+    let tags: string[];
     try {
       tags = JSON.parse(tagsString || '[]');
+      if (!Array.isArray(tags)) {
+        tags = [];
+      }
     } catch (e) {
       console.error('Error parsing tags:', e);
+      tags = [];
     }
 
     // Upload to Vercel Blob
@@ -45,13 +51,13 @@ export async function POST(request: NextRequest) {
       addRandomSuffix: true,
     });
 
-    // Save to database
+    // Save to NEON database
     const client = await pool.connect();
     try {
       const result = await client.query(
         `INSERT INTO documents (
-          id, user_id, name, type, file_path, size, mime_type, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+          id, user_id, name, type, file_path, size, mime_type, tags, metadata
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
         RETURNING *`,
         [
           nanoid(),
@@ -62,31 +68,19 @@ export async function POST(request: NextRequest) {
           file.size,
           file.type,
           JSON.stringify(tags),
+          JSON.stringify({ originalName: file.name }) // Add any additional metadata here
         ]
       );
 
       return NextResponse.json(result.rows[0]);
     } catch (dbError) {
       console.error('Database error:', dbError);
-      return NextResponse.json(
-        { error: 'Failed to save document metadata' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to save document metadata' }, { status: 500 });
     } finally {
       client.release();
     }
   } catch (error) {
     console.error('Error uploading document:', error);
-    return NextResponse.json(
-      { error: 'Failed to upload document' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 });
   }
 }
-
-// Explicitly type the configuration object
-export const segmentConfig: Record<string, any> = {
-  api: {
-    bodyParser: false,
-  },
-};

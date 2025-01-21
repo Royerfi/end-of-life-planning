@@ -1,55 +1,56 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { PDFViewer } from './pdf-viewer'
+import { useState, useEffect } from 'react';
+import Image from 'next/image'; // Replacing <img> for optimization
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PDFViewer } from './pdf-viewer';
 
 interface DocumentViewerProps {
+  documentId: string;
   documentUrl: string;
-  mimeType: string;
+  mimeType?: string;
+  filePath: string;
   onClose: () => void;
 }
 
-export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewerProps) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  if (!documentUrl) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <DialogHeader>
-          <DialogTitle>Error</DialogTitle>
-          <DialogDescription>No document URL provided</DialogDescription>
-        </DialogHeader>
-        <Button onClick={onClose} className="mt-4">Close</Button>
-      </div>
-    )
+function getMimeType(filePath: string): string {
+  const extension = filePath?.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'pdf': return 'application/pdf';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'png': return 'image/png';
+    case 'txt': return 'text/plain';
+    default: return 'application/octet-stream';
   }
+}
+
+export function DocumentViewer({ documentId, documentUrl, mimeType, filePath, onClose }: DocumentViewerProps) {
+  const resolvedMimeType = mimeType || getMimeType(filePath); // Removed dependency on resolvedMimeType state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!documentUrl) {
-      setError('No document URL provided')
-      setIsLoading(false)
-      return
-    }
+    const fetchDocument = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    const checkDocument = async () => {
       try {
-        const response = await fetch(documentUrl)
+        const response = await fetch(filePath);
         if (!response.ok) {
-          throw new Error('Failed to load document')
+          throw new Error(`Failed to fetch document: ${response.statusText}`);
         }
-        setIsLoading(false)
       } catch (err) {
-        setError('Failed to load document. Please try again later.')
-        console.error('Error loading document:', err)
+        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    checkDocument()
-  }, [documentUrl])
+    fetchDocument();
+  }, [filePath]); // Removed `resolvedMimeType` from dependencies
 
   if (error) {
     return (
@@ -58,44 +59,61 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
           <DialogTitle>Error</DialogTitle>
           <DialogDescription>{error}</DialogDescription>
         </DialogHeader>
-        <Button onClick={onClose} className="mt-4">Close</Button>
+        <Button onClick={onClose} className="mt-4">
+          Close
+        </Button>
       </div>
-    )
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full gap-4">
+        <Loader2 className="h-8 w-8 animate-spin" />
         <DialogHeader>
           <DialogTitle>Loading Document</DialogTitle>
           <DialogDescription>Please wait while we load your document...</DialogDescription>
         </DialogHeader>
-        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
-    )
+    );
   }
+
+  const downloadFileName = `document-${documentUrl.split('/').pop()}.${filePath.split('.').pop()}`;
 
   return (
     <div className="h-full flex flex-col">
       <DialogHeader>
         <DialogTitle>Document Viewer</DialogTitle>
         <DialogDescription>Viewing your document</DialogDescription>
+        <DialogDescription>{documentId}</DialogDescription>
       </DialogHeader>
-      <div className="flex-grow">
-        {mimeType.startsWith('image/') && (
-          <img 
-            src={documentUrl || "/placeholder.svg"} 
-            alt="Document" 
-            className="max-w-full max-h-full object-contain"
-            crossOrigin="anonymous"
-          />
-        )}
-        {mimeType === 'application/pdf' && (
-          <PDFViewer documentUrl={documentUrl} />
-        )}
-        {!mimeType.startsWith('image/') && mimeType !== 'application/pdf' && (
-          <div className="flex items-center justify-center h-full">
-            <p>Unsupported file type. Please download to view.</p>
+      <div className="flex-grow overflow-auto">
+        {resolvedMimeType.startsWith('image/') ? (
+         <Image
+         src={filePath}
+         alt="Document preview"
+         width={800}
+         height={600}
+         className="mx-auto"
+       />
+       
+        ) : resolvedMimeType === 'application/pdf' ? (
+          <PDFViewer documentUrl={filePath} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="mb-4">This file type cannot be previewed.</p>
+            <Button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = filePath;
+                a.download = downloadFileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+            >
+              Download Document
+            </Button>
           </div>
         )}
       </div>
@@ -103,6 +121,5 @@ export function DocumentViewer({ documentUrl, mimeType, onClose }: DocumentViewe
         <Button onClick={onClose}>Close</Button>
       </div>
     </div>
-  )
+  );
 }
-

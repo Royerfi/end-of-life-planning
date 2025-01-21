@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -54,7 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/dashboard')
       } else {
         const errorData = await response.json()
-        console.error('Login error:', errorData)
         throw new Error(errorData.error || 'Invalid credentials')
       }
     } catch (error) {

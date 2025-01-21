@@ -1,108 +1,82 @@
-import { NextResponse } from 'next/server'
-import { del } from '@vercel/blob'
-import pool from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server';
+import pool from '@/lib/db';
+
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: RouteContext
 ) {
   try {
-    const client = await pool.connect()
-    const result = await client.query(
-      'SELECT * FROM documents WHERE id = $1',
-      [params.id]
-    )
-    client.release()
-
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
-      )
+    if (!(await context.params)?.id) {
+      return NextResponse.json({ error: 'Missing document ID' }, { status: 400 });
     }
 
-    return NextResponse.json(result.rows[0])
-  } catch (error) {
-    console.error('Error fetching document:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch document' },
-      { status: 500 }
-    )
-  }
-}
+    const id = (await context.params).id;
+    console.log('Params received:', context.params);
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Get document URL from database
-    const client = await pool.connect()
-    const result = await client.query(
-      'SELECT url FROM documents WHERE id = $1',
-      [params.id]
-    )
+    const client = await pool.connect().catch((err) => {
+      console.error('Database connection failed:', err);
+      throw new Error('Database connection error');
+    });
 
-    if (result.rows.length === 0) {
-      client.release()
-      return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
-      )
+    try {
+      const result = await client.query(
+        'SELECT file_path FROM documents WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      }
+
+      const filePath = result.rows[0].file_path;
+
+      const isValidUrl = (path: string) => {
+        try {
+          new URL(path);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      if (!isValidUrl(filePath)) {
+        console.error('Invalid file path:', filePath);
+        return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000); // 5-second timeout
+
+      try {
+        const response = await fetch(filePath, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+          console.error('Fetch failed with status:', response.status);
+          throw new Error(`Failed to fetch document: ${response.statusText}`);
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return new NextResponse(buffer, {
+          headers: {
+            'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+            'Content-Disposition': `inline; filename="document-${id}"`,
+          },
+        });
+      } catch (err) {
+        const error = err as Error;
+        if (error.name === 'AbortError') {
+          return NextResponse.json({ error: 'Request timed out' }, { status: 408 });
+        }
+        throw error;
+      }
+    } finally {
+      client.release();
     }
-
-    // Delete from Vercel Blob
-    await del(result.rows[0].url)
-
-    // Delete from database
-    await client.query(
-      'DELETE FROM documents WHERE id = $1',
-      [params.id]
-    )
-    client.release()
-
-    return new NextResponse(null, { status: 204 })
   } catch (error) {
-    console.error('Error deleting document:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete document' },
-      { status: 500 }
-    )
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Error fetching document' }, { status: 500 });
   }
 }
-
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const body = await request.json()
-    const { name, type, tags } = body
-
-    const client = await pool.connect()
-    const result = await client.query(
-      `UPDATE documents 
-       SET name = $1, type = $2, tags = $3, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4 
-       RETURNING *`,
-      [name, type, JSON.stringify(tags), params.id]
-    )
-    client.release()
-
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Document not found' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(result.rows[0])
-  } catch (error) {
-    console.error('Error updating document:', error)
-    return NextResponse.json(
-      { error: 'Failed to update document' },
-      { status: 500 }
-    )
-  }
-}
-
