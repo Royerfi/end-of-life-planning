@@ -3,6 +3,7 @@ import { AppProps } from 'next/app';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/AuthContext';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import '@/styles/globals.css';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
